@@ -15,6 +15,8 @@ import hmac
 import json
 import os
 import requests
+import subprocess
+import tempfile
 import time
 
 
@@ -144,3 +146,71 @@ def uploadbox2aws(localboxpath, s3filename, s3bucket, s3key):
         response = requests.put(puturl, data=box, headers=headers)
     if response.status_code != 200:
         raise Exception("Failed to upload to s3: status code '{}: {}'".format(response.status_code, response.reason))
+
+
+def sha1sum(filename, blocksize=2**20):
+    sha1 = hashlib.sha1()
+    with open(filename) as f:
+        while True:
+            buffer = f.read(blocksize)
+            if not buffer:
+                break
+            sha1.update(buffer)
+        digest = sha1.hexdigest()
+    return digest
+
+
+def scp(file, uri):
+    scpexe = 'pscp.exe' if os.name == 'nt' else 'scp'
+    subprocess.check_call('{} "{}" "{}"'.format(scpexe, file, uri), shell=True)
+
+
+def gettempfilename():
+    tf = tempfile.mkstemp()
+    name = tf[1]
+    tf[0].close()
+    os.unlink(name)
+    return name
+
+
+def newbox(boxname, boxdescription, boxversion, boxfile, providername, scpuri, catalogbaseurl):
+    """Process a new box from Packer
+
+    Arguments:
+    boxname -- the name of the box
+    boxdescription -- a description for our box
+    boxversion -- the box version
+    boxfile -- the packer artifact itself
+    providername -- the name of the provider that packer generated this box for
+    scpuri -- a place to copy the box to
+    catalogbaseurl -- the base url for the catalog
+
+    Note that we have made some assumptions:
+    1. the catalog JSON file can be found at catalogbaseurl/boxname.json
+       so if catalogbaseurl is https://example.com/boxes and boxname is 'test',
+       we place the catalog JSON file at https://example.com/boxes/test.json
+    2. the scpuri and the catalogbaseurl refer to the same location on the
+       server's filesystem. so if /var/www/example.com is the document root of
+       your webserver, you'd need to pass /var/www/example.com as part of your
+       'scpuri' (but you may also include username and hostname)
+    3. pscp or scp is available on the PATH
+    4. you have a private key for authenticating to the scp server
+    """
+
+    boxfile = resolvepath(boxfile)
+    boxfilename = os.path.basename(boxfile)
+    boxurl = "{}/{}".format(catalogbaseurl, boxfilename)
+
+    scp(boxfile, scpuri)
+
+    tempcatalog = gettempfilename()
+    try:
+        scp("{}/{}.json".format(scpuri, boxname), tempcatalog)
+        with open(tempcatalog) as tc:
+            catalogtext = tc.read()
+        newcatalog = addbox2catalog(boxname, boxdescription, boxversion, boxurl, 'sha1', sha1sum(boxfile), catalogtext, providername)
+        with open(tempcatalog, 'rb') as tc:
+            tc.write(newcatalog)
+        scp(tempcatalog, "{}/{}".format(scpuri, boxfilename))
+    finally:
+        os.unlink(tempcatalog)
