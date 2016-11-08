@@ -3,6 +3,7 @@
 # Run unit tests with "python -m unittest discover"
 
 import datetime
+import io
 import json
 import unittest
 
@@ -52,3 +53,11 @@ class PackerPostprocessVagrantCatalogTestCase(unittest.TestCase):
         actualresult = caryatid.rfc2822date(testdate)
         if actualresult != expectedresult:
             raise Exception("Failed to encode rfc2822 time correctly. Input/Expected/Actual:\n'{}'\n'{}'\n'{}'\n".format(indatestr, expectedresult, actualresult))
+
+    def test_sha1sum(self):
+        data = b'thought leader / thot follower'
+        fp = io.BytesIO(data)
+        expected = '7dec495be4b03cf87189582a94477b05c1eb6236'
+        result = caryatid.sha1sum(fp)
+        if result != expected:
+            raise Exception("Failed to calculate sha1sum correctly. Input/Expected/Actual:\n{}\n{}\n{}\n".format(data, expected, result))

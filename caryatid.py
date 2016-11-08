@@ -148,15 +148,14 @@ def uploadbox2aws(localboxpath, s3filename, s3bucket, s3key):
         raise Exception("Failed to upload to s3: status code '{}: {}'".format(response.status_code, response.reason))
 
 
-def sha1sum(filename, blocksize=2**20):
+def sha1sum(fp, blocksize=2**20):
     sha1 = hashlib.sha1()
-    with open(filename) as f:
-        while True:
-            buffer = f.read(blocksize)
-            if not buffer:
-                break
-            sha1.update(buffer)
-        digest = sha1.hexdigest()
+    while True:
+        buffer = fp.read(blocksize)
+        if not buffer:
+            break
+        sha1.update(buffer)
+    digest = sha1.hexdigest()
     return digest
 
 
@@ -206,9 +205,11 @@ def newbox(boxname, boxdescription, boxversion, boxfile, providername, scpuri, c
     tempcatalog = gettempfilename()
     try:
         scp("{}/{}.json".format(scpuri, boxname), tempcatalog)
+        with open(boxfile) as bf:
+            digest = sha1sum(bf)
         with open(tempcatalog) as tc:
             catalogtext = tc.read()
-        newcatalog = addbox2catalog(boxname, boxdescription, boxversion, boxurl, 'sha1', sha1sum(boxfile), catalogtext, providername)
+        newcatalog = addbox2catalog(boxname, boxdescription, boxversion, boxurl, 'sha1', digest, catalogtext, providername)
         with open(tempcatalog, 'rb') as tc:
             tc.write(newcatalog)
         scp(tempcatalog, "{}/{}".format(scpuri, boxfilename))
