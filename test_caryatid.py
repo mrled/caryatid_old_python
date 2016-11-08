@@ -2,7 +2,7 @@
 
 # Run unit tests with "python -m unittest discover"
 
-import io
+import datetime
 import json
 import unittest
 
@@ -43,3 +43,12 @@ class PackerPostprocessVagrantCatalogTestCase(unittest.TestCase):
         expectedresult = '{"name": "testbox", "versions": [{"version": "0.0.2", "providers": [{"name": "testprovider", "checksum": "NONE", "checksum_type": "nochecksum", "url": "http://example.com/test.box"}]}], "description": "a test box"}'
         for catalog in testcatalogs:
             self._test_ab2c(catalog, expectedresult)
+
+    def test_rfc2822time(self):
+        indatestr = '2015-02-02-18-31-29 -0600'
+        indatefmt = '%Y-%m-%d-%H-%M-%S %z'
+        expectedresult = "Mon, 02 Feb 2015 18:31:29 -0600"
+        testdate = datetime.datetime.strptime(indatestr, indatefmt)
+        actualresult = caryatid.rfc2822date(testdate)
+        if actualresult != expectedresult:
+            raise Exception("Failed to encode rfc2822 time correctly. Input/Expected/Actual:\n'{}'\n'{}'\n'{}'\n".format(indatestr, expectedresult, actualresult))

@@ -9,7 +9,6 @@
 # - Add it to catalog
 # - Push catalog
 
-import contextlib
 import datetime
 import hashlib
 import hmac
@@ -38,51 +37,6 @@ def resolvepath(path):
     return os.path.realpath(os.path.normpath(os.path.expanduser(path)))
 
 
-@contextlib.contextmanager
-def open2(pathorfile, mode):
-    """Given either a (string) path or a file-like object, return a file-like object
-    Intended for functions to use instead of builtin `open()` so that I can pass either
-    """
-
-    def suitablefile(pathorfile, mode):
-        if 'r' in mode and not hasattr(pathorfile, 'read'):
-            return False
-        if 'w' in mode and not hasattr(pathorfile, 'write'):
-            return False
-        return True
-
-    if suitablefile(pathorfile, mode):
-        f = pathorfile
-        toclose = None
-    else:
-        f = toclose = open(resolvepath(pathorfile), mode)
-
-    try:
-        yield f
-    finally:
-        if toclose:
-            toclose.close()
-        else:
-            f.flush()
-
-
-# Sample artifact catalog:
-#
-#
-# {
-#     "name": "devops",
-#     "description": "This box contains Ubuntu 14.04.2 LTS 64-bit.",
-#     "versions": [{
-#         "version": "0.1.0",
-#         "providers": [{
-#                 "name": "virtualbox",
-#                 "url": "file://~/VagrantBoxes/devops_0.1.0.box",
-#                 "checksum_type": "sha1",
-#                 "checksum": "d3597dccfdc6953d0a6eff4a9e1903f44f72ab94"
-#         }]
-#     }]
-# }
-
 def addbox2catalog(boxname, boxdescription, boxversion, boxurl, boxchecksumtype, boxchecksum, catalogtext, providername):
     """Add a new Vagrant box to a catalog file
 
@@ -96,6 +50,21 @@ def addbox2catalog(boxname, boxdescription, boxversion, boxurl, boxchecksumtype,
     boxchecksum -- The checksum itself
     catalogfile -- Either a path to, or a file-like object representing, the Vagrant catalog file
     providername -- The provider name, such as 'virtualbox'
+
+    Example artifact catalog file:
+    {
+        "name": "devops",
+        "description": "This box contains Ubuntu 14.04.2 LTS 64-bit.",
+        "versions": [{
+            "version": "0.1.0",
+            "providers": [{
+                    "name": "virtualbox",
+                    "url": "file://~/VagrantBoxes/devops_0.1.0.box",
+                    "checksum_type": "sha1",
+                    "checksum": "d3597dccfdc6953d0a6eff4a9e1903f44f72ab94"
+            }]
+        }]
+    }
     """
 
     if len(catalogtext) == 0:
@@ -128,20 +97,37 @@ def addbox2catalog(boxname, boxdescription, boxversion, boxurl, boxchecksumtype,
     return json.dumps(catalogdata)
 
 
-def rfc2822now():
-    zone = time.altzone if time.localtime(time.time()).tm_isdst and time.daylight else time.timezone
+def rfc2822date(dt=datetime.datetime.now()):
+    """Convert an existing datetime.datetime object to RFC2822 format
+
+    (This format is used by Amazon S3 REST API)
+
+    Arguments:
+    dt -- a datetime.datetime object
+
+    Example:
+        Mon, 07 Nov 2016 19:32:05 +0000
+    """
+
+    if time.localtime(time.mktime(dt.timetuple())).tm_isdst and time.daylight:
+        zone = time.altzone
+    else:
+        zone = time.timezone
+
     offsethours = int(abs(zone) / 60 / 60)
     offsetminutes = int(abs(zone) / 60 % 60)
+    # This next line looks wrong but it isn't - we flip the sign on purpose
     sign = '-' if zone == abs(zone) else '+'
-    offset = "{}{:0<2}{:0<2}".format(sign, offsethours, offsetminutes)
-    rfc2822 = datetime.datetime.strftime(datetime.datetime.now(), '%a, %d %b %Y %H:%M:%S {}'.format(offset))
+    offset = "{}{:0>2}{:0>2}".format(sign, offsethours, offsetminutes)
+
+    rfc2822 = datetime.datetime.strftime(dt, '%a, %d %b %Y %H:%M:%S {}'.format(offset))
     return rfc2822
 
 
 def uploadbox2aws(localboxpath, s3filename, s3bucket, s3key):
     localboxpath = resolvepath(localboxpath)
     # e.g. Mon, 07 Nov 2016 19:32:05 +0000
-    datestamp = rfc2822now()
+    datestamp = rfc2822date()
     puturl = 'https://{}.s3.amazonaws.com/{}'.format(s3bucket, s3filename)
     contenttype = 'application/zip'
     resource = '/{}/{}'.format(s3bucket, s3filename)
