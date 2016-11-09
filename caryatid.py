@@ -15,6 +15,7 @@ import hmac
 import json
 import os
 import requests
+import shutil
 import subprocess
 import tempfile
 import time
@@ -175,8 +176,8 @@ def gettempfilename():
     return name
 
 
-def newbox(boxname, boxdescription, boxversion, boxfile, providername, scpuri):
-    """Process a new box from Packer
+def addscp(name, description, version, provider, artifact, destination):
+    """Upload a box to an scp server
 
     Arguments:
     boxname -- the name of the box
@@ -195,23 +196,53 @@ def newbox(boxname, boxdescription, boxversion, boxfile, providername, scpuri):
     4. you have a private key for authenticating to the scp server
     """
 
-    boxfile = resolvepath(boxfile)
-    boxfilename = os.path.basename(boxfile)
-    boxurl = "{}/boxes/{}".format(scpuri, boxfilename)
-    cataloguri = "{}/{}.json".format(scpuri, boxname)
+    artifact = resolvepath(artifact)
+    boxfilename = "{}_{}_{}.box".format(name, version, provider)
+    cataloguri = "{}/{}.json".format(destination, name)
+    boxuri = "scp://{}/boxes/{}".format(destination, boxfilename)
     tempcatalog = gettempfilename()
 
-    scp(boxfile, scpuri)
+    scp(artifact, boxuri)
 
     try:
         scp(cataloguri, tempcatalog)
-        with open(boxfile) as bf:
-            digest = sha1sum(bf)
+        with open(artifact) as af:
+            digest = sha1sum(af)
         with open(tempcatalog) as tc:
             catalogtext = tc.read()
-        newcatalog = addbox2catalog(boxname, boxdescription, boxversion, boxurl, 'sha1', digest, catalogtext, providername)
+        newcatalog = addbox2catalog(name, description, version, boxuri, 'sha1', digest, catalogtext, provider)
         with open(tempcatalog, 'rb') as tc:
             tc.write(newcatalog)
         scp(tempcatalog, cataloguri)
     finally:
         os.unlink(tempcatalog)
+
+
+def addcopy(name, description, version, provider, artifact, destination):
+    """Copy a file to a location on the filesystem
+
+    name         the box name
+    description  the box description
+    version      the box version
+    provider     the box provider
+    artifact     the path to the artifact
+    destination  the location of the catalog
+    """
+    artifact = resolvepath(artifact)
+    boxfilename = "{}_{}_{}.box".format(name, version, provider)
+    cataloguri = "{}/{}.json".format(destination, name)
+    boxpath = "{}/boxes/{}".format(destination, boxfilename)
+    boxuri = "file:///{}".format(boxpath.replace('\\', '/'))
+
+    os.makedirs("{}/boxes".format(destination), exist_ok=True)
+    shutil.copyfile(artifact, boxpath)
+    with open(artifact, 'rb') as af:
+        digest = sha1sum(af)
+    if os.path.exists(cataloguri):
+        with open(cataloguri) as cf:
+            catalogtext = cf.read()
+    else:
+        catalogtext = ""
+    newcatalogtext = addbox2catalog(name, description, version, boxuri, 'sha1', digest, catalogtext, provider)
+    with open(cataloguri, 'w') as cf:
+        cf.write(newcatalogtext)
