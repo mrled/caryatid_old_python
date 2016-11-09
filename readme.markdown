@@ -17,16 +17,25 @@ Caryatid can build Vagrant catalogs and upload files to remote storage, and it c
 - Some sort of webserver mode would be nice, and is in line with the no server-side logic goal. Probably require an scp url for doing uploads in addition to an http url for vagrant to fetch the boxes?
 - Likewise, some sort of fileserver mode would be useful too. Even if it's all local development, this would give an advantage over doing `vagrant box add` on the raw `.box` file - versioning. Vagrant doesn't keep track of box versions when doing `vagrant box add` but it will do so if pointed to a catalog.
 
+## Invoking from the command line
+
+    python -m caryatid -h
+
+## Invoking tests
+
+    python -m unittest discover
+
 ## Invoking from packer
 
-Add a shell-local post-processor:
+To invoke from packer, add a shell-local post-processor:
 
     {
       "type": "shell-local",
-      "inline": ["../../scripts/caryatid/__main__.py {{user `boxname`}} {{user `description`}} {{user `version`}} {{user `output_path`}} {{user `scpuri`}}"]
+      "inline": ["../../scripts/caryatid/__main__.py boxname description version outputpath scpuri"]
     }
 
 ## See also
 
 - [How to set up a self-hosted "vagrant cloud" with versioned, self-packaged vagrant boxes](https://github.com/hollodotme/Helpers/blob/master/Tutorials/vagrant/self-hosted-vagrant-boxes-with-versioning.md)
 - [Distributing Vagrant base boxes securely](http://chase-seibert.github.io/blog/2014/05/18/vagrant-authenticated-private-box-urls.html)
+
