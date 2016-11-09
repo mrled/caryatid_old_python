@@ -12,9 +12,22 @@ def main(*args, **kwargs):
     parser.add_argument(
         "-d", action='store_true', dest='debug',
         help="Include debugging output")
+
     parser.add_argument(
-        "artifact",
+        "boxname",
+        help="The name of the box we are building")
+    parser.add_argument(
+        "boxdescription",
+        help="A description for the box")
+    parser.add_argument(
+        "boxversionbase",
+        help="The version of the box")
+    parser.add_argument(
+        "boxfile",
         help="The artifact we are being passed")
+    parser.add_argument(
+        "scpuri",
+        help="An SCP URI such as me@example.com/some/path. Must be a path local to the webserver that corresponds to the catalogbaseurl parameter.")
 
     parsed = parser.parse_args()
     if parsed.debug:
@@ -24,15 +37,13 @@ def main(*args, **kwargs):
     artifact = caryatid.resolvepath(parsed.artifact)
     splart = os.path.basename(artifact).split(".")
     if splart[-1] == "box":
-        boxtype = splart[-2]
-        if boxtype == "virtualbox":
-            pass
-        else:
-            raise Exception("Found a box of type '{}' but don't know how to process it".format(boxtype))
+        providername = splart[-2]
     else:
         caryatid.debugprint("Passed an artifact named '{}'; nothing to do".format(artifact))
 
-    raise Exception("Haven't yet gotten all the arguments we need, haven't yet called any of my functions for uploading or anything")
+    caryatid.newbox(
+        parsed.boxname, parsed.boxdescription, parsed.boxversion,
+        parsed.boxfile, providername, parsed.scpuri)
 
 
 if __name__ == '__main__':

@@ -45,25 +45,28 @@ def addbox2catalog(boxname, boxdescription, boxversion, boxurl, boxchecksumtype,
     Catalog files are one per box, with multiple versions. So there may be a catalog file for a box named "webserver", with versions 0.0.1, 0.0.2, etc.
 
     Arguments:
-    boxname -- The name of the box
-    boxdescription -- A description of the box
-    boxurl -- The URL that vagrant will fetch the box from
-    boxchecksumtype -- The type of checksum, such as 'sha1'
-    boxchecksum -- The checksum itself
-    catalogfile -- Either a path to, or a file-like object representing, the Vagrant catalog file
-    providername -- The provider name, such as 'virtualbox'
+    boxname           The name of the box
+    boxdescription    The description of the box
+    boxurl            The URL that vagrant will fetch the box from
+    boxchecksumtype   The type of checksum, such as 'sha1'
+    boxchecksum       The checksum itself
+    catalogtext       The text of the existing catalog, if any
+    providername      The provider name, such as 'virtualbox'
+
+    Returns:
+    The text of the new catalog
 
     Example artifact catalog file:
     {
-        "name": "devops",
-        "description": "This box contains Ubuntu 14.04.2 LTS 64-bit.",
+        "name": "testbox",
+        "description": "Just an example",
         "versions": [{
             "version": "0.1.0",
             "providers": [{
-                    "name": "virtualbox",
-                    "url": "file://~/VagrantBoxes/devops_0.1.0.box",
-                    "checksum_type": "sha1",
-                    "checksum": "d3597dccfdc6953d0a6eff4a9e1903f44f72ab94"
+                "name": "virtualbox",
+                "url": "user@example.com/caryatid/boxes/testbox_0.1.0.box",
+                "checksum_type": "sha1",
+                "checksum": "d3597dccfdc6953d0a6eff4a9e1903f44f72ab94"
             }]
         }]
     }
@@ -172,7 +175,7 @@ def gettempfilename():
     return name
 
 
-def newbox(boxname, boxdescription, boxversion, boxfile, providername, scpuri, catalogbaseurl):
+def newbox(boxname, boxdescription, boxversion, boxfile, providername, scpuri):
     """Process a new box from Packer
 
     Arguments:
@@ -182,23 +185,19 @@ def newbox(boxname, boxdescription, boxversion, boxfile, providername, scpuri, c
     boxfile -- the packer artifact itself
     providername -- the name of the provider that packer generated this box for
     scpuri -- a place to copy the box to
-    catalogbaseurl -- the base url for the catalog
 
     Note that we have made some assumptions:
-    1. the catalog JSON file can be found at catalogbaseurl/boxname.json
-       so if catalogbaseurl is https://example.com/boxes and boxname is 'test',
-       we place the catalog JSON file at https://example.com/boxes/test.json
-    2. the scpuri and the catalogbaseurl refer to the same location on the
-       server's filesystem. so if /var/www/example.com is the document root of
-       your webserver, you'd need to pass /var/www/example.com as part of your
-       'scpuri' (but you may also include username and hostname)
+    1. the catalog JSON file can be found at scpuri/boxname.json so that if
+       scpuri is 'user@example.com/boxes' and boxname is 'test', we place the
+       catalog JSON file at user@example.com/boxes/test.json
+    2. the boxes are stored under scpuri/boxes/
     3. pscp or scp is available on the PATH
     4. you have a private key for authenticating to the scp server
     """
 
     boxfile = resolvepath(boxfile)
     boxfilename = os.path.basename(boxfile)
-    boxurl = "{}/{}".format(catalogbaseurl, boxfilename)
+    boxurl = "{}/boxes/{}".format(scpuri, boxfilename)
 
     scp(boxfile, scpuri)
 
