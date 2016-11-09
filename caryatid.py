@@ -198,12 +198,13 @@ def newbox(boxname, boxdescription, boxversion, boxfile, providername, scpuri):
     boxfile = resolvepath(boxfile)
     boxfilename = os.path.basename(boxfile)
     boxurl = "{}/boxes/{}".format(scpuri, boxfilename)
+    cataloguri = "{}/{}.json".format(scpuri, boxname)
+    tempcatalog = gettempfilename()
 
     scp(boxfile, scpuri)
 
-    tempcatalog = gettempfilename()
     try:
-        scp("{}/{}.json".format(scpuri, boxname), tempcatalog)
+        scp(cataloguri, tempcatalog)
         with open(boxfile) as bf:
             digest = sha1sum(bf)
         with open(tempcatalog) as tc:
@@ -211,6 +212,6 @@ def newbox(boxname, boxdescription, boxversion, boxfile, providername, scpuri):
         newcatalog = addbox2catalog(boxname, boxdescription, boxversion, boxurl, 'sha1', digest, catalogtext, providername)
         with open(tempcatalog, 'rb') as tc:
             tc.write(newcatalog)
-        scp(tempcatalog, "{}/{}".format(scpuri, boxfilename))
+        scp(tempcatalog, cataloguri)
     finally:
         os.unlink(tempcatalog)
