@@ -207,7 +207,7 @@ def addcopy(name, description, version, provider, artifact, destination):
     artifact = resolvepath(artifact)
     boxfilename = "{}_{}_{}.box".format(name, version, provider)
     cataloguri = "{}/{}.json".format(destination, name)
-    boxpath = "{}/boxes/{}".format(destination, boxfilename)
+    boxpath = resolvepath("{}/boxes/{}".format(destination, boxfilename))
     boxuri = "file:///{}".format(boxpath.replace('\\', '/'))
 
     os.makedirs("{}/boxes".format(destination), exist_ok=True)
