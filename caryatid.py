@@ -11,10 +11,8 @@
 
 import datetime
 import hashlib
-import hmac
 import json
 import os
-import requests
 import shutil
 import subprocess
 import tempfile
@@ -128,28 +126,6 @@ def rfc2822date(dt=datetime.datetime.now()):
 
     rfc2822 = datetime.datetime.strftime(dt, '%a, %d %b %Y %H:%M:%S {}'.format(offset))
     return rfc2822
-
-
-def uploadbox2aws(localboxpath, s3filename, s3bucket, s3key):
-    localboxpath = resolvepath(localboxpath)
-    # e.g. Mon, 07 Nov 2016 19:32:05 +0000
-    datestamp = rfc2822date()
-    puturl = 'https://{}.s3.amazonaws.com/{}'.format(s3bucket, s3filename)
-    contenttype = 'application/zip'
-    resource = '/{}/{}'.format(s3bucket, s3filename)
-    stringtosign = "PUT\n\n{}\n{}\n{}".format(contenttype, datestamp, resource)
-    # untested. ugh. see here: http://www.jamesransom.net/uploading-a-file-using-curl-to-s3-aws/
-    s3signature = hmac.new(s3key, msg=stringtosign, digestmode=hashlib.sha1)
-    headers = {
-        'Host': '{}.s3.amazonaws.com'.format(s3bucket),
-        'Date': datestamp,
-        'Content-Type': contenttype,
-        'Authorization': 'AWS {}:{}'.format(s3key, s3signature)
-    }
-    with open(localboxpath, 'rb') as box:
-        response = requests.put(puturl, data=box, headers=headers)
-    if response.status_code != 200:
-        raise Exception("Failed to upload to s3: status code '{}: {}'".format(response.status_code, response.reason))
 
 
 def sha1sum(fp, blocksize=2**20):
